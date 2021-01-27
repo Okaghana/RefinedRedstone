@@ -1,0 +1,21 @@
+{
+  "multipart": [
+    {   "apply": { "model": "refinedredstone:block/refined_redstone_model_core" }},
+
+    {   "when": { "north": "side|up" },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_side"}
+    },
+
+    {   "when": { "east": "side|up" },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_side", "y":  90}
+    },
+
+    {   "when": { "south": "side|up" },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_side", "y":  180}
+    },
+
+    {   "when": { "west": "side|up" },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_side", "y":  270}
+    }
+  ]
+}
