@@ -7,6 +7,10 @@ public class RefinedRedstonePile extends Item {
 
     public static final Properties PROPERTIES = new Item.Properties().group(RefinedRedstone.MOD_ITEM_GROUP);
 
+    public RefinedRedstonePile() {
+        this(PROPERTIES);
+    }
+
     public RefinedRedstonePile(Properties properties) {
         super(properties);
     }

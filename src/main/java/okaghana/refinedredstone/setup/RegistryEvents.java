@@ -2,8 +2,6 @@ package okaghana.refinedredstone.setup;
 
 import net.minecraftforge.client.event.ColorHandlerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.config.ModConfig;
-
 
 public class RegistryEvents {
 

@@ -1,6 +1,5 @@
 package okaghana.refinedredstone.block;
 
-import com.ibm.icu.impl.duration.impl.DataRecord;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -15,6 +14,7 @@ import net.minecraft.util.math.shapes.ISelectionContext;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.world.IBlockDisplayReader;
 import net.minecraft.world.IBlockReader;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 
@@ -27,8 +27,7 @@ public class Diode extends Block implements IBlockColor {
     public static final IntegerProperty OUTPUT_POWER = BlockStateProperties.POWER_0_15;
 
     public Diode() {
-        super(PROPERTIES);
-        setDefaultState(getDefaultState().with(FACING, Direction.NORTH));
+        this(PROPERTIES);
     }
 
     public Diode(Properties properties) {
@@ -36,8 +35,10 @@ public class Diode extends Block implements IBlockColor {
         setDefaultState(getDefaultState().with(FACING, Direction.NORTH));
     }
 
+    @SuppressWarnings("deprecation")
+    @NotNull
     @Override
-    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
+    public VoxelShape getShape(@NotNull BlockState state, @NotNull IBlockReader worldIn, @NotNull BlockPos pos, @NotNull ISelectionContext context) {
         return Block.makeCuboidShape(0, 0, 0, 16, 2, 16);
     }
 
@@ -47,7 +48,7 @@ public class Diode extends Block implements IBlockColor {
     }
 
     @Override
-    public int getColor(BlockState blockState, @Nullable IBlockDisplayReader displayReader, @Nullable BlockPos blockPos, int tintIndex) {
+    public int getColor(@NotNull BlockState blockState, @Nullable IBlockDisplayReader displayReader, @Nullable BlockPos blockPos, int tintIndex) {
         if (tintIndex == 0) {
             return RedstoneWireBlock.getRGBByPower(blockState.get(INPUT_POWER));
         } else {

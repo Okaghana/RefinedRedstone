@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 
 
 // Creates a Deferred Register with all Blocks
+@SuppressWarnings("unused")
 public class BlockRegister {
     public static final DeferredRegister<Block> REGISTER = DeferredRegister.create(ForgeRegistries.BLOCKS, RefinedRedstone.MODID);
 

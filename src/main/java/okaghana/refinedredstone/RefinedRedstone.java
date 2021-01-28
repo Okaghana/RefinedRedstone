@@ -14,13 +14,9 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 
 import javax.annotation.Nonnull;
-import java.util.Collections;
-import java.util.Enumeration;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /** The main class of the mod and serves as an entry point for forge to load all mod files. <br><br>
  *
@@ -30,6 +26,7 @@ import java.util.stream.Collectors;
  *
  * Whenever you want to log something to the logfiles, you can use {@link okaghana.refinedredstone.RefinedRedstone#MOD_LOGGER}.log() to log a message.
  */
+@SuppressWarnings("unused")
 @Mod("refinedredstone")
 public class RefinedRedstone {
     public static final String MODID = "refinedredstone";
