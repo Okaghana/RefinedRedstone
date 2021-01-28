@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:smelting",
-  "ingredient": {
-    "item": "minecraft:redstone"
-  },
-  "result": "refinedredstone:refined_redstone_pile",
-  "experience": 0.0,
-  "cookingtime": 100
-}
