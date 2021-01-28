@@ -13,14 +13,22 @@ import net.minecraft.util.math.shapes.VoxelShapes;
 import net.minecraft.world.IBlockDisplayReader;
 import net.minecraft.world.IBlockReader;
 import net.minecraft.world.World;
+import okaghana.refinedredstone.RefinedRedstone;
+import okaghana.refinedredstone.setup.ConfigHandler;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.logging.Level;
 
+/**
+ * This is the main block of the mod and serves as an improved version of the default redstone wire. <br><br>
+ *
+ * All methods are either inherited or copied from the basic redstone wire, as we want to ensure the same behaviour and functionality
+ * as the default Redstone and only want to change this where we want to add features
+ */
 public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockColor{
 
     public static final Properties PROPERTIES = Block.Properties.create(Material.ROCK).hardnessAndResistance(0.05f).doesNotBlockMovement().harvestLevel(0);
-
-    private final boolean biggerHitbox = true;
 
     private static final VoxelShape SHAPE_CORE = Block.makeCuboidShape(6, 0, 6, 10, 2, 10);
     private static final VoxelShape SHAPE_NORTH = Block.makeCuboidShape(6, 0, 0, 10, 2, 6);
@@ -30,22 +38,34 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
 
     private boolean canProvidePower = true;
 
+
+    /**
+     * Initializes the Block with {@link RefinedRedstoneBlock#PROPERTIES} as the Property
+     */
     public RefinedRedstoneBlock() {
-        super(PROPERTIES);
-        this.setDefaultState(this.stateContainer.getBaseState().with(NORTH, RedstoneSide.NONE).with(EAST, RedstoneSide.NONE).with(SOUTH, RedstoneSide.NONE).with(WEST, RedstoneSide.NONE).with(POWER, 0));
+        this(PROPERTIES);
     }
 
+
+    /**
+     * Create a new Object with the given Properties. As we have the desired Properties as a static property, this will probably
+     * only ever be called from {@link RefinedRedstoneBlock#RefinedRedstoneBlock()} <br><br>
+     *
+     * @param properties The Properties of the Block
+     */
     public RefinedRedstoneBlock(Properties properties) {
         super(properties);
         this.setDefaultState(this.stateContainer.getBaseState().with(NORTH, RedstoneSide.NONE).with(EAST, RedstoneSide.NONE).with(SOUTH, RedstoneSide.NONE).with(WEST, RedstoneSide.NONE).with(POWER, 0));
     }
 
     /**
-     * Returns the shape of the block
+     * Returns the shape of the block <br><br>
      *
      * The image that you see on the screen (when a block is rendered) is determined by the block model (i.e. the model json file).
-     * But Minecraft also uses a number of other "shapes" to control the interaction of the block with its environment and with the player.
-     * When the config "biggerHitbox" is True, the shape will be a whole 1x1 meter wide, else it will only be the shape of the textures itself.
+     * But Minecraft also uses a number of other "shapes" to control the interaction of the block with its environment and with the player
+     * (basically the hitbox for the gray wireframe when you look at a block). <br><br>
+     *
+     * When the config "biggerHitbox" is True, the shape will be a whole 1x1 meter wide, else it will only be the shape of the textures itself. <br><br>
      *
      * @param state     The State of the Block
      * @param worldIn   The World the Block is in
@@ -54,8 +74,8 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
      * @return          A VoxelShape that represents the Shape of the Block
      */
     @Override
-    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
-        if (biggerHitbox) {
+    public @NotNull VoxelShape getShape(@NotNull BlockState state, @NotNull IBlockReader worldIn, @NotNull BlockPos pos, @NotNull ISelectionContext context) {
+        if (ConfigHandler.REFINED_REDSTONE_BLOCK_BIGGER_HITBOX.get()) {
             return Block.makeCuboidShape(0, 0, 0, 16, 2, 16);
         } else {
             VoxelShape shape = SHAPE_CORE;
@@ -73,9 +93,9 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
     /**
      * Tint the Block according to the current Power
      *    0 = Dark Red
-     *    15 = Bright Red
+     *    15 = Bright Red <br><br>
      *
-     * The Color is calculated by the inherited method getRGBByPower from RedstoneWireBlock (for now)
+     * The Color is calculated by the inherited method getRGBByPower from RedstoneWireBlock (for now)<br><br>
      *
      * @param blockstate            The BlockState of the Block
      * @param blockDisplayReader    The DisplayReader
@@ -88,12 +108,14 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
         return getRGBByPower(blockstate.get(POWER));
     }
 
+
     // ---------------------------------------- //
     //            BlockState Logic              //
     // ---------------------------------------- //
 
+
     @Override
-    public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+    public void onBlockAdded(BlockState state, @NotNull World worldIn, @NotNull BlockPos pos, BlockState oldState, boolean isMoving) {
         if (!oldState.isIn(state.getBlock()) && !worldIn.isRemote) {
             this.updatePower(worldIn, pos, state);
 
@@ -106,9 +128,9 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
     }
 
     @Override
-    public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+    public void onReplaced(@NotNull BlockState state, @NotNull World worldIn, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
         if (!isMoving && !state.isIn(newState.getBlock())) {
-            super.onReplaced(state, worldIn, pos, newState, isMoving);
+            super.onReplaced(state, worldIn, pos, newState, false);
             if (!worldIn.isRemote) {
                 for(Direction direction : Direction.values()) {
                     worldIn.notifyNeighborsOfStateChange(pos.offset(direction), this);
@@ -121,7 +143,7 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
     }
 
     @Override
-    public void neighborChanged(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos, boolean isMoving) {
+    public void neighborChanged(@NotNull BlockState state, World worldIn, @NotNull BlockPos pos, @NotNull Block blockIn, @NotNull BlockPos fromPos, boolean isMoving) {
         if (!worldIn.isRemote) {
             if (state.isValidPosition(worldIn, pos)) {
                 this.updatePower(worldIn, pos, state);
@@ -164,9 +186,11 @@ public class RefinedRedstoneBlock extends RedstoneWireBlock implements IBlockCol
         }
     }
 
+
     // ----------------------------- //
     //           Power Logic         //
     // ------------------------------//
+
 
     private void updatePower(World world, BlockPos pos, BlockState state) {
         int i = this.getStrongestSignal(world, pos);
