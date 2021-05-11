@@ -1,10 +1,7 @@
 package okaghana.refinedredstone;
 
 import net.minecraftforge.fml.ModLoadingContext;
-import okaghana.refinedredstone.setup.BlockRegister;
-import okaghana.refinedredstone.setup.ConfigHandler;
-import okaghana.refinedredstone.setup.ItemRegister;
-import okaghana.refinedredstone.setup.RegistryEvents;
+import okaghana.refinedredstone.setup.*;
 
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -15,6 +12,7 @@ import net.minecraftforge.fml.config.ModConfig;
 
 import javax.annotation.Nonnull;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
@@ -44,6 +42,7 @@ public class RefinedRedstone {
         // Register Blocks and Items to the
         BlockRegister.REGISTER.register(MOD_EVENT_BUS);
         ItemRegister.REGISTER.register(MOD_EVENT_BUS);
+        TileEntityRegister.REGISTER.register(MOD_EVENT_BUS);
 
         // Create the ItemGroup for the items
         MOD_ITEM_GROUP = new ItemGroup(MODID) {
@@ -61,5 +60,9 @@ public class RefinedRedstone {
 
         // Register (and therefore load) the Config
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ConfigHandler.config, "RefinedRedstone.toml");
+    }
+
+    public static void log(String message){
+        MOD_LOGGER.log(Level.INFO, message);
     }
 }
