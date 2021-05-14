@@ -62,4 +62,8 @@ public class RefinedRedstone {
         // Register (and therefore load) the Config
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ConfigHandler.config, "RefinedRedstone.toml");
     }
+
+    public static void log(String message){
+        MOD_LOGGER.log(Level.INFO, message);
+    }
 }

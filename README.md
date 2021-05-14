@@ -17,3 +17,15 @@ Once a version will be released as jar-file, you will be able to find all releas
 ## Exporting as a JAR
 To export the mod as a JAR you need to run `gradlew build` in the root folder of the project.
 The .jar can be found in /build/libs
+
+
+# TODO
+- Expand the possible connections for refined redstone
+  - Requires a TileEntity "with a dynamic model" and `IModelData (According to @gigaherz on Discord)
+- Implement the following blocks:
+  - Diode
+  - Filter
+  - Adder, Subtractor, etc
+  - Gates
+  - Variable power source
+- AR Helmet that shows all kind of Data about Redstone circuits
