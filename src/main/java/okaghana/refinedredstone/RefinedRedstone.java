@@ -1,20 +1,23 @@
 package okaghana.refinedredstone;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import okaghana.refinedredstone.setup.BlockRegister;
 import okaghana.refinedredstone.setup.ConfigHandler;
 import okaghana.refinedredstone.setup.ItemRegister;
 import okaghana.refinedredstone.setup.RegistryEvents;
 
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-
 import javax.annotation.Nonnull;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
@@ -65,5 +68,12 @@ public class RefinedRedstone {
 
     public static void log(String message){
         MOD_LOGGER.log(Level.INFO, message);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    public static void chat(String message) {
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.sendChatMessage(message);
+        }
     }
 }
