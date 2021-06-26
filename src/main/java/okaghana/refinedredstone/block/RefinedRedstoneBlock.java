@@ -3,7 +3,6 @@ package okaghana.refinedredstone.block;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.RedstoneWireBlock;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.color.IBlockColor;
 import net.minecraft.item.BlockItemUseContext;
@@ -29,12 +28,6 @@ import org.jetbrains.annotations.NotNull;
 import javax.annotation.Nullable;
 import java.util.*;
 
-/**
- * This is the main block of the mod and serves as an improved version of the default redstone wire. <br><br>
- *
- * All methods originally copied from the basic {@link RedstoneWireBlock}, as we want to ensure the same behaviour and functionality
- * as the default Redstone and only want to change this where we want to add features
- */
 public class RefinedRedstoneBlock extends Block implements IBlockColor{
 
     public static final Properties PROPERTIES = Block.Properties.create(Material.ROCK).hardnessAndResistance(0.05f).doesNotBlockMovement().harvestLevel(0);
