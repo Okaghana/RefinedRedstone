@@ -21,15 +21,14 @@ public class BlockRegister {
     public static final RegistryObject<RefinedRedstoneBlock> REFINED_REDSTONE = registerBlock("refined_redstone", RefinedRedstoneBlock::new);
     public static final RegistryObject<Diode> DIODE = registerBlock("diode", Diode::new);
 
-
-    // Register a Block including the corresponding Item
+    // Register a block and the respective item
     private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> block) {
         RegistryObject<T> ret = REGISTER.register(name, block);
         ItemRegister.REGISTER.register(name, () -> new BlockItem(ret.get(), new Item.Properties().group(RefinedRedstone.MOD_ITEM_GROUP)));
         return ret;
     }
 
-    // Register a Block without the Item
+    // Register a block without the item
     private static <T extends Block> RegistryObject<T> registerBlockNoItem(String name, Supplier<T> block) {
         return REGISTER.register(name, block);
     }

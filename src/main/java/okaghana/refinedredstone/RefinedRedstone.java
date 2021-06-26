@@ -1,14 +1,16 @@
 package okaghana.refinedredstone;
 
-import net.minecraftforge.fml.ModLoadingContext;
-import okaghana.refinedredstone.setup.*;
-
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import okaghana.refinedredstone.setup.*;
 
 import javax.annotation.Nonnull;
 import java.util.function.Supplier;
@@ -42,27 +44,40 @@ public class RefinedRedstone {
         // Register Blocks and Items to the
         BlockRegister.REGISTER.register(MOD_EVENT_BUS);
         ItemRegister.REGISTER.register(MOD_EVENT_BUS);
-        TileEntityRegister.REGISTER.register(MOD_EVENT_BUS);
 
         // Create the ItemGroup for the items
-        MOD_ITEM_GROUP = new ItemGroup(MODID) {
-            private final Supplier<ItemStack> icon = () -> new ItemStack(BlockRegister.REFINED_REDSTONE.get());
+        if (ConfigHandler.USE_SEPARATE_ITEM_GROUP.get()) {
+            MOD_ITEM_GROUP = new ItemGroup(MODID) {
+                private final Supplier<ItemStack> icon = () -> new ItemStack(BlockRegister.REFINED_REDSTONE.get());
 
-            @Override
-            @Nonnull
-            public ItemStack createIcon() {
-                return icon.get();
-            }
-        };
+                @Override
+                @Nonnull
+                public ItemStack createIcon() {
+                    return icon.get();
+                }
+            };
+        } else {
+            MOD_ITEM_GROUP = ItemGroup.REDSTONE;
+        }
 
         // Register to the Events
         MOD_EVENT_BUS.register(RegistryEvents.class);
+        MOD_EVENT_BUS.register(EntityRegister.class);
 
         // Register (and therefore load) the Config
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ConfigHandler.config, "RefinedRedstone.toml");
     }
 
+    // Debugging
     public static void log(String message){
         MOD_LOGGER.log(Level.INFO, message);
+    }
+
+    // more Debugging
+    @OnlyIn(Dist.CLIENT)
+    public static void chat(String message) {
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.sendChatMessage(message);
+        }
     }
 }

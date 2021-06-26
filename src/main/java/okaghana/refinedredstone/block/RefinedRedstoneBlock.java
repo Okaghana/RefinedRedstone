@@ -1,27 +1,29 @@
 package okaghana.refinedredstone.block;
 
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableMap;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.RedstoneWireBlock;
+import net.minecraft.block.material.Material;
+import net.minecraft.client.renderer.color.IBlockColor;
 import net.minecraft.item.BlockItemUseContext;
+import net.minecraft.item.ItemStack;
 import net.minecraft.particles.RedstoneParticleData;
-import net.minecraft.state.*;
+import net.minecraft.state.BooleanProperty;
+import net.minecraft.state.IntegerProperty;
+import net.minecraft.state.StateContainer;
 import net.minecraft.state.properties.BlockStateProperties;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.*;
+import net.minecraft.util.Direction;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.shapes.ISelectionContext;
+import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.util.math.shapes.VoxelShapes;
 import net.minecraft.util.math.vector.Vector3f;
 import net.minecraft.world.*;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import okaghana.refinedredstone.setup.BlockRegister;
-
-import net.minecraft.block.*;
-import net.minecraft.block.material.Material;
-import net.minecraft.state.properties.RedstoneSide;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
-import okaghana.refinedredstone.setup.TileEntityRegister;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
@@ -33,21 +35,31 @@ import java.util.*;
  * All methods originally copied from the basic {@link RedstoneWireBlock}, as we want to ensure the same behaviour and functionality
  * as the default Redstone and only want to change this where we want to add features
  */
-public class RefinedRedstoneBlock extends Block {
+public class RefinedRedstoneBlock extends Block implements IBlockColor{
 
     public static final Properties PROPERTIES = Block.Properties.create(Material.ROCK).hardnessAndResistance(0.05f).doesNotBlockMovement().harvestLevel(0);
 
-    public static final DirectionProperty FACE = BlockStateProperties.FACING;
-    public static final BooleanProperty CONNECTION_UP = BooleanProperty.create("connected_up");
-    public static final BooleanProperty CONNECTION_DOWN = BooleanProperty.create("connected_down");
-    public static final BooleanProperty CONNECTION_LEFT = BooleanProperty.create("connected_left");
-    public static final BooleanProperty CONNECTION_RIGHT = BooleanProperty.create("connected_right");
-    public static final IntegerProperty POWER = BlockStateProperties.POWER_0_15;
+    public static final VoxelShape SHAPE_UP = Block.makeCuboidShape(0, 14, 0, 16, 16, 16);
+    public static final VoxelShape SHAPE_DOWN = Block.makeCuboidShape(0, 2, 0, 16, 0, 16);
+    public static final VoxelShape SHAPE_NORTH = Block.makeCuboidShape(0, 0, 2, 16, 16, 0);
+    public static final VoxelShape SHAPE_EAST = Block.makeCuboidShape(14, 0, 0, 16, 16, 16);
+    public static final VoxelShape SHAPE_SOUTH = Block.makeCuboidShape(0, 0, 14, 16, 16, 16);
+    public static final VoxelShape SHAPE_WEST = Block.makeCuboidShape(2, 0, 0, 0, 16, 16);
 
-    private static final Table<RedstoneSide, Direction, VoxelShape> REDUCED_SHAPES = HashBasedTable.create(2, 5);  // VoxelShapes to define the HitBox
+    public static final BooleanProperty CONNECTED_UP = BooleanProperty.create("connected_up");
+    public static final BooleanProperty CONNECTED_DOWN = BooleanProperty.create("connected_down");
+    public static final BooleanProperty CONNECTED_NORTH = BooleanProperty.create("connected_north");
+    public static final BooleanProperty CONNECTED_EAST = BooleanProperty.create("connected_east");
+    public static final BooleanProperty CONNECTED_SOUTH = BooleanProperty.create("connected_south");
+    public static final BooleanProperty CONNECTED_WEST = BooleanProperty.create("connected_west");
+    public static final IntegerProperty POWER = BlockStateProperties.POWER_0_15;
+    public static final Map<Direction, BooleanProperty> DIRECTION_TO_PROPERTY = ImmutableMap.<Direction, BooleanProperty>builder()
+            .put(Direction.UP, CONNECTED_UP).put(Direction.DOWN, CONNECTED_DOWN).put(Direction.NORTH, CONNECTED_NORTH)
+            .put(Direction.EAST, CONNECTED_EAST).put(Direction.SOUTH, CONNECTED_SOUTH).put(Direction.WEST, CONNECTED_WEST).build();
 
     private static final Vector3f[] powerColors = new Vector3f[16];
     private boolean canProvidePower = true;
+
 
     /**
      * Initializes the Block with {@link RefinedRedstoneBlock#PROPERTIES} as the Property
@@ -65,12 +77,10 @@ public class RefinedRedstoneBlock extends Block {
      */
     public RefinedRedstoneBlock(Properties properties) {
         super(properties);
+        this.setDefaultState(this.stateContainer.getBaseState().with(CONNECTED_UP, false).with(CONNECTED_DOWN, false)
+                .with(CONNECTED_NORTH, false).with(CONNECTED_EAST, false).with(CONNECTED_SOUTH, false)
+                .with(CONNECTED_WEST, false).with(POWER, 0));
 
-        // Set default state (all disconnected)
-        setDefaultState(this.stateContainer.getBaseState().with(POWER, 0).with(CONNECTION_UP, false)
-                .with(CONNECTION_DOWN, false).with(CONNECTION_LEFT, false).with(CONNECTION_RIGHT, false));
-
-        // Initializing Colors
         for(int i = 0; i <= 15; ++i) {
             float f = (float)i / 15.0F;
             float f1 = f * 0.6F + (f > 0.0F ? 0.4F : 0.3F);
@@ -78,42 +88,23 @@ public class RefinedRedstoneBlock extends Block {
             float f3 = MathHelper.clamp(f * f * 0.6F - 0.7F, 0.0F, 1.0F);
             powerColors[i] = new Vector3f(f1, f2, f3);
         }
-
-        // Precalculate the required VoxelShapes
-        REDUCED_SHAPES.put(RedstoneSide.SIDE, Direction.DOWN,  Block.makeCuboidShape(6, 0, 6, 10, 2, 10));
-        REDUCED_SHAPES.put(RedstoneSide.SIDE, Direction.NORTH, Block.makeCuboidShape(6, 0, 0, 10, 2, 6));
-        REDUCED_SHAPES.put(RedstoneSide.SIDE, Direction.EAST,  Block.makeCuboidShape(10, 0, 6, 16, 2, 10));
-        REDUCED_SHAPES.put(RedstoneSide.SIDE, Direction.SOUTH, Block.makeCuboidShape(6, 0, 10, 10, 2, 16));
-        REDUCED_SHAPES.put(RedstoneSide.SIDE, Direction.WEST,  Block.makeCuboidShape(0, 0, 6, 6, 2, 10));
-
-        REDUCED_SHAPES.put(RedstoneSide.UP, Direction.NORTH, Block.makeCuboidShape(6, 0, 0, 10, 16, 2));
-        REDUCED_SHAPES.put(RedstoneSide.UP, Direction.EAST,  Block.makeCuboidShape(16, 0, 6, 14, 16, 10));
-        REDUCED_SHAPES.put(RedstoneSide.UP, Direction.SOUTH, Block.makeCuboidShape(6, 0, 16, 10, 16, 14));
-        REDUCED_SHAPES.put(RedstoneSide.UP, Direction.WEST,  Block.makeCuboidShape(0, 0, 6, 2, 16, 10));
     }
 
-
+    /**
+     * This will register the desired BlockStates for this Block to the game.
+     */
     @Override
-    public boolean hasTileEntity(BlockState state) {
-        return true;
-    }
-
-
-    @Nullable
-    @Override
-    public TileEntity createTileEntity(BlockState state, IBlockReader world) {
-        return TileEntityRegister.REFINED_REDSTONE.get().create();
+    protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder) {
+        builder.add(POWER, CONNECTED_UP, CONNECTED_DOWN, CONNECTED_NORTH, CONNECTED_EAST, CONNECTED_SOUTH, CONNECTED_WEST);
     }
 
 
     /**
-     * Returns the shape of the block <br><br>
+     * Returns the shape of the block.
      *
      * The image that you see on the screen (when a block is rendered) is determined by the block model (i.e. the model json file).
      * But Minecraft also uses a number of other "shapes" to control the interaction of the block with its environment and with the player
-     * (basically the hitbox for the gray wireframe when you look at a block). <br><br>
-     *
-     * When the config "biggerHitbox" is True, the shape will be a whole 1x1 meter wide, else it will only be the shape of the textures itself. <br><br>
+     * (basically the HitBox for the gray wireframe when you look at a block).
      *
      * @param state     The State of the Block
      * @param worldIn   The World the Block is in
@@ -125,401 +116,266 @@ public class RefinedRedstoneBlock extends Block {
     @NotNull
     @Override
     public VoxelShape getShape(@NotNull BlockState state, @NotNull IBlockReader worldIn, @NotNull BlockPos pos, @NotNull ISelectionContext context) {
-        switch (state.get(FACE)){
-            case DOWN: return Block.makeCuboidShape(0, 0, 0, 16, 2, 16);
-            case NORTH: return Block.makeCuboidShape(0, 0, 0, 16, 16, 2);
-            case WEST: return Block.makeCuboidShape(0, 0, 0, 2, 16, 16);
-            case UP: return Block.makeCuboidShape(16, 16, 16, 0, 14, 0);
-            case SOUTH: return Block.makeCuboidShape(16, 16, 16, 0, 0, 14);
-            case EAST: return Block.makeCuboidShape(16, 16, 16, 14, 0, 0);
-            default: return VoxelShapes.empty();
-        }
-    }
+        VoxelShape shape = VoxelShapes.empty();
 
+        if (state.get(CONNECTED_UP)) { shape = VoxelShapes.or(shape, SHAPE_UP); }
+        if (state.get(CONNECTED_DOWN)) { shape = VoxelShapes.or(shape, SHAPE_DOWN); }
+        if (state.get(CONNECTED_NORTH)) { shape = VoxelShapes.or(shape, SHAPE_NORTH); }
+        if (state.get(CONNECTED_EAST)) { shape = VoxelShapes.or(shape, SHAPE_EAST); }
+        if (state.get(CONNECTED_SOUTH)) { shape = VoxelShapes.or(shape, SHAPE_SOUTH); }
+        if (state.get(CONNECTED_WEST)) { shape = VoxelShapes.or(shape, SHAPE_WEST); }
 
-    // ---------------------------------------- //
-    //            BlockState Logic              //
-    // ---------------------------------------- //
-
-
-    /**
-     * This will register the desired BlockState properties for this Block to the game.
-     */
-    @Override
-    protected void fillStateContainer(StateContainer.@NotNull Builder<Block, BlockState> builder) {
-        builder.add(FACE, POWER, CONNECTION_UP, CONNECTION_DOWN, CONNECTION_LEFT, CONNECTION_RIGHT);
+        return shape;
     }
 
 
     /**
-     * Generate the BlockState when placing the block.
+     * Calculates the BlockState for a Block when it's placed. Since want to be able to place multiple
+     * wires on the same stop, we also override isReplaceable. In that case we update the Properties accordingly.
      *
-     * @param context   The Context of the placed block
-     * @return          The BlockState at placing
+     * Context->getFace: The actual face the player is looking at (Basically opposite of the viewing direction)
+     * Context->getPos: The position of the new Block (most of the time air)
+     *
+     * @param context The context in which the block has been placed
+     * @return The BlockState of the new Block
      */
     @Override
+    @Nullable
     public BlockState getStateForPlacement(BlockItemUseContext context) {
-        return getDefaultState().with(FACE, context.getFace().getOpposite());
-    }
+        Direction face = context.getFace();
+        BlockPos pos = context.getPos();
+        World world = context.getWorld();
 
-
-    /**
-     * Will be called BEFORE a Block of this type is placed into the world
-     *
-     * @param state     The Blockstate
-     * @param worldIn   What world the block is in
-     * @param pos       The Position in the world
-     * @param oldState  The old Blockstate
-     * @param isMoving  Whether the block is moving
-     */
-    @SuppressWarnings("deprecation")
-    @Override
-    public void onBlockAdded(BlockState state, @NotNull World worldIn, @NotNull BlockPos pos, BlockState oldState, boolean isMoving) {
-        if (!oldState.isIn(state.getBlock()) && !worldIn.isRemote) {
-            this.updatePower(worldIn, pos, state);
-
-            for(Direction direction : Direction.Plane.VERTICAL) {
-                worldIn.notifyNeighborsOfStateChange(pos.offset(direction), this);
-            }
-
-            this.updateNeighboursStateChange(worldIn, pos);
+        if (world.getBlockState(pos).isIn(this)) {
+            return world.getBlockState(pos).with(DIRECTION_TO_PROPERTY.get(face.getOpposite()), true);
         }
+
+        BlockState state = getDefaultState().with(DIRECTION_TO_PROPERTY.get(face.getOpposite()), true);
+        if (state.isValidPosition(world, pos)) {
+            return state;
+        }
+
+        return null;
     }
 
 
     /**
-     * This is called whenever the BlockState changes or the Block is broken
+     * Test if each connection for a block is attached to a solid Face
      *
-     * @param state     The Blockstate
-     * @param worldIn   What world the block is in
-     * @param pos       The Position in the world
-     * @param newState  The State of the new Block on this position (Minecraft:air when destroyed)
-     * @param isMoving  Whether the block is moving
+     * @param state The BlockState of the block to be tested
+     * @param world The World the block is in
+     * @param pos The P
+     * @return Whether all faces can connect to a solid face
      */
     @SuppressWarnings("deprecation")
     @Override
-    public void onReplaced(@NotNull BlockState state, @NotNull World worldIn, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
-        if (!isMoving && !state.isIn(newState.getBlock())) {
-            if (!worldIn.isRemote) {
-                for(Direction direction : Direction.values()) {
-                    worldIn.notifyNeighborsOfStateChange(pos.offset(direction), this);
+    public boolean isValidPosition(@NotNull BlockState state, @NotNull IWorldReader world, @NotNull BlockPos pos) {
+        for (Direction direction : Direction.values()) {
+            if (state.get(DIRECTION_TO_PROPERTY.get(direction))) {
+                // Return false if the attachment-block doesn't have a solid side
+                BlockPos other = pos.offset(direction);
+                if (!world.getBlockState(other).isSolidSide(world, other, direction.getOpposite())) {
+                    return false;
                 }
-
-                this.updatePower(worldIn, pos, state);
-                this.updateNeighboursStateChange(worldIn, pos);
-            }
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public void neighborChanged(@NotNull BlockState state, World worldIn, @NotNull BlockPos pos, @NotNull Block blockIn, @NotNull BlockPos fromPos, boolean isMoving) {
-        if (!worldIn.isRemote) {
-            if (state.isValidPosition(worldIn, pos)) {
-                this.updatePower(worldIn, pos, state);
-            } else {
-                spawnDrops(state, worldIn, pos);
-                worldIn.removeBlock(pos, false);
-            }
-
-        }
-    }
-
-
-    private void updateNeighboursStateChange(World world, BlockPos pos) {
-        for(Direction direction : Direction.Plane.HORIZONTAL) {
-            this.notifyWireNeighborsOfStateChange(world, pos.offset(direction));
-        }
-
-        for(Direction direction1 : Direction.Plane.HORIZONTAL) {
-            BlockPos blockpos = pos.offset(direction1);
-            if (world.getBlockState(blockpos).isNormalCube(world, blockpos)) {
-                this.notifyWireNeighborsOfStateChange(world, blockpos.up());
-            } else {
-                this.notifyWireNeighborsOfStateChange(world, blockpos.down());
             }
         }
 
-    }
-
-    /**
-     * Calls World.notifyNeighborsOfStateChange() for all neighboring blocks, but only if the given block is a redstone
-     * wire.
-     */
-    private void notifyWireNeighborsOfStateChange(World worldIn, BlockPos pos) {
-        if (worldIn.getBlockState(pos).isIn(this)) {
-            worldIn.notifyNeighborsOfStateChange(pos, this);
-
-            for(Direction direction : Direction.values()) {
-                worldIn.notifyNeighborsOfStateChange(pos.offset(direction), this);
-            }
-
-        }
-    }
-
-    /**
-     * Update the blockstate of this block depending on neighbors
-     *
-     * @param reader    The BlockReader, often the world the block is in
-     * @param state     The initial blockstate
-     * @param pos       The Position in the world
-     * @return          The Updated Blockstate
-     */
-    private BlockState getUpdatedState(IBlockReader reader, BlockState state, BlockPos pos) {
-        state = this.getDefaultState().with(POWER, state.get(POWER));
-        boolean noBlockAbove = !reader.getBlockState(pos.up()).isNormalCube(reader, pos);
-
-        return state;
-    }
-
-    /**
-     * Update the provided state given the provided neighbor facing and neighbor state, returning a new state.
-     * For example, fences make their connections to the passed in state if possible, and wet concrete powder immediately
-     * returns its solidified counterpart.
-     * Note that this method should ideally consider only the specific face passed in.
-     */
-    @SuppressWarnings("deprecation")
-    @NotNull
-    @Override
-    public BlockState updatePostPlacement(@NotNull BlockState stateIn, @NotNull Direction facing, @NotNull BlockState facingState, @NotNull IWorld worldIn, @NotNull BlockPos currentPos, @NotNull BlockPos facingPos) {
-        if (facing == Direction.DOWN) {
-            return stateIn;
-        } else if (facing == Direction.UP) {
-            return this.getUpdatedState(worldIn, stateIn, currentPos);
-        } else {
-            RedstoneSide redstoneside = this.getSide(worldIn, currentPos, facing);
-            return redstoneside.func_235921_b_() == stateIn.get(CONNECTION_UP) && !allSidesConnected(stateIn) ? stateIn.with(CONNECTION_UP, false) : this.getUpdatedState(worldIn, getDefaultState().with(POWER, stateIn.get(POWER)).with(CONNECTION_DOWN, false), currentPos);
-        }
-    }
-
-
-    /**
-     * Checks if all sides are connected
-     *
-     * @param state The Current BlockState
-     * @return If all sides of the BlockState have {@link RedstoneSide#SIDE} or {@link RedstoneSide#UP} as value
-     */
-    private static boolean allSidesConnected(BlockState state) {
-        return state.get(CONNECTION_UP) && state.get(CONNECTION_DOWN) && state.get(CONNECTION_LEFT) && state.get(CONNECTION_RIGHT);
-    }
-
-
-    /**
-     * performs updates on diagonal neighbors of the target position and passes in the flags. The flags can be referenced
-     * from the docs for {@link IWorldWriter#setBlockState(BlockPos, BlockState, int)}.
-     */
-    @SuppressWarnings("deprecation")
-    @Override
-    public void updateDiagonalNeighbors(@NotNull BlockState state, @NotNull IWorld worldIn, @NotNull BlockPos pos, int flags, int recursionLeft) {
-        BlockPos.Mutable blockpos$mutable = new BlockPos.Mutable();
-
-//        for(Direction direction : Direction.Plane.HORIZONTAL) {
-//            RedstoneSide redstoneside = state.get(FACING_PROPERTY_MAP.get(direction));
-//            if (redstoneside != RedstoneSide.NONE && !worldIn.getBlockState(blockpos$mutable.setAndMove(pos, direction)).isIn(this)) {
-//                blockpos$mutable.move(Direction.DOWN);
-//                BlockState blockstate = worldIn.getBlockState(blockpos$mutable);
-//                if (!blockstate.isIn(Blocks.OBSERVER)) {
-//                    BlockPos blockpos = blockpos$mutable.offset(direction.getOpposite());
-//                    BlockState blockstate1 = blockstate.updatePostPlacement(direction.getOpposite(), worldIn.getBlockState(blockpos), worldIn, blockpos$mutable, blockpos);
-//                    replaceBlockState(blockstate, blockstate1, worldIn, blockpos$mutable, flags, recursionLeft);
-//                }
-//
-//                blockpos$mutable.setAndMove(pos, direction).move(Direction.UP);
-//                BlockState blockstate3 = worldIn.getBlockState(blockpos$mutable);
-//                if (!blockstate3.isIn(Blocks.OBSERVER)) {
-//                    BlockPos blockpos1 = blockpos$mutable.offset(direction.getOpposite());
-//                    BlockState blockstate2 = blockstate3.updatePostPlacement(direction.getOpposite(), worldIn.getBlockState(blockpos1), worldIn, blockpos$mutable, blockpos1);
-//                    replaceBlockState(blockstate3, blockstate2, worldIn, blockpos$mutable, flags, recursionLeft);
-//                }
-//            }
-//        }
-
-    }
-
-    private RedstoneSide getSide(IBlockReader worldIn, BlockPos pos, Direction face) {
-        return this.recalculateSide(worldIn, pos, face, !worldIn.getBlockState(pos.up()).isNormalCube(worldIn, pos));
-    }
-
-    /**
-     * Recalculate the position from this block to the block in the given direction
-     *
-     * @param reader            The BlockReader, most of the time the world
-     * @param pos               The Position of this block
-     * @param direction         The Direction towards the neighbor
-     * @param noFullCubeAbove   If a solid Cube is above
-     * @return                  The new RedstoneSide in the given direction
-     */
-    private RedstoneSide recalculateSide(IBlockReader reader, BlockPos pos, Direction direction, boolean noFullCubeAbove) {
-        BlockPos neighborPos = pos.offset(direction);
-        BlockState neighborState = reader.getBlockState(neighborPos);
-
-        // If there is a solid block above this block, we don't want to check for upward connections
-        if (noFullCubeAbove) {
-            boolean canBePlacedOnTop = this.canPlaceOnTopOf(reader, neighborPos, neighborState);
-            boolean canConnectTo = canConnectTo(reader.getBlockState(neighborPos.up()), reader, neighborPos.up(), null);
-            boolean solidWall = neighborState.isSolidSide(reader, neighborPos, direction.getOpposite());
-
-            if (canBePlacedOnTop && canConnectTo ) {
-                if (solidWall) return RedstoneSide.UP;
-                return RedstoneSide.SIDE;
-            }
-        }
-
-        boolean canConnectToNeighbor = canConnectTo(neighborState, reader, neighborPos, direction);
-        boolean canConnectBelow = canConnectTo(reader.getBlockState(neighborPos.down()), reader, neighborPos.down(), null);
-        return !canConnectToNeighbor && (neighborState.isNormalCube(reader, neighborPos) || !canConnectBelow) ? RedstoneSide.NONE : RedstoneSide.SIDE;
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public boolean isValidPosition(@NotNull BlockState state, IWorldReader worldIn, BlockPos pos) {
-        BlockPos blockpos = pos.down();
-        BlockState blockstate = worldIn.getBlockState(blockpos);
-        return this.canPlaceOnTopOf(worldIn, blockpos, blockstate);
-    }
-
-
-    /**
-     * If Redstone can be placed on top of the block. <br>
-     * TODO: Make a list of Blocks that should be placeable
-     *
-     * @param reader    The BlockReader
-     * @param pos       The Position of the Block in Question
-     * @param state     The Blockstate of that block
-     * @return          If RefinedRedstone can be placed on top
-     */
-    private boolean canPlaceOnTopOf(IBlockReader reader, BlockPos pos, BlockState state) {
-        return state.isSolidSide(reader, pos, Direction.UP) || state.isIn(Blocks.HOPPER);
-    }
-
-    protected static boolean canConnectTo(BlockState blockState, IBlockReader world, BlockPos pos, @Nullable Direction side) {
-        if (blockState.isIn(Blocks.REDSTONE_WIRE) || blockState.isIn(BlockRegister.REFINED_REDSTONE.get())) {
-            return true;
-        } else if (blockState.isIn(Blocks.REPEATER)) {
-            Direction direction = blockState.get(RepeaterBlock.HORIZONTAL_FACING);
-            return direction == side || direction.getOpposite() == side;
-        } else if (blockState.isIn(Blocks.OBSERVER)) {
-            return side == blockState.get(ObserverBlock.FACING);
-        } else {
-            return blockState.canConnectRedstone(world, pos, side) && side != null;
-        }
-    }
-
-    @Override
-    public boolean canConnectRedstone(BlockState state, IBlockReader world, BlockPos pos, @Nullable Direction side) {
         return true;
     }
 
-    // ----------------------------- //
-    //           Power Logic         //
-    // ------------------------------//
+
+    /**
+     * Called whenever a Block is right-clicked on this Block
+     *
+     * In this case, when the player uses another RefinedRedstoneBlock, we want to add another connection to the
+     * existing block. (Is done in GetStateForPlacement)
+     *
+     * @param state The state of the block that was right-clicked
+     * @param useContext The context of the block in the players hand
+     * @return Whether the new Block can replace the old one
+     */
+    @SuppressWarnings("deprecation")
+    @Override
+    public boolean isReplaceable(@NotNull BlockState state, BlockItemUseContext useContext) {
+        ItemStack itemstack = useContext.getItem();
+        return itemstack.getItem() == this.asItem();
+    }
 
 
     /**
-     * Update the Power of the Block
+     * After we place the Block we calculate the Power for this block
      *
-     * @param world The World with the block
-     * @param pos   The Position of the Block
      * @param state The state of the Block
+     * @param facing ?
+     * @param facingState ?
+     * @param world The World the Block is in
+     * @param currentPos The Position of the Block
+     * @param facingPos ?
+     * @return The new BlockState with the updated Power
      */
-    private void updatePower(World world, BlockPos pos, BlockState state) {
-        //BlockPos sourcePosition = pos.offset(getPowerFrom);
-        //BlockState sourceState = world.getBlockState(sourcePosition);
-        //if (getPower(sourceState) == 0) {
-            //world.setBlockState(pos, state.with(POWER, 0));
-        //}
+    @SuppressWarnings("deprecation")
+    @Override
+    @NotNull
+    public BlockState updatePostPlacement(@NotNull BlockState state, @NotNull Direction facing, @NotNull BlockState facingState, @NotNull IWorld world, @NotNull BlockPos currentPos, @NotNull BlockPos facingPos) {
+        updateNetworkPower((World) world, currentPos);
+        return world.getBlockState(currentPos);
+    }
 
-        int strongestSignal = this.getStrongestSignal(world, pos);
 
-        if (state.get(POWER) != strongestSignal) {
-            if (world.getBlockState(pos) == state) {
-                world.setBlockState(pos, state.with(POWER, strongestSignal), 2);
+    // ---------------------------------------- //
+    //               Power Logic                //
+    // ---------------------------------------- //
+
+
+    /** Will be called on an BlockUpdate (e.g. new Block placed next to it)
+     *
+     * This method will try to recalculate the Power of the whole Network. If we place a new power source which is already
+     * stronger than the current level, we can just update the power of the whole network and spare some computing time.
+     *
+     * @param state Out BlockState
+     * @param world The world the Block is in
+     * @param pos The Position of this Block
+     * @param block The Block that was there before
+     * @param fromPos The Position the Neighbor is
+     * @param isMoving If the neighbor is moving
+     */
+    @SuppressWarnings("deprecation")
+    @Override
+    public void neighborChanged(@NotNull BlockState state, World world, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
+        if (!world.isRemote && !(world.getBlockState(fromPos).getBlock() instanceof RefinedRedstoneBlock)) {
+            if (state.isValidPosition(world, pos)) {
+                Direction directionToSource = Direction.getFacingFromVector(pos.subtract(fromPos).getX(), pos.subtract(fromPos).getY(), pos.subtract(fromPos).getZ());
+                if (world.getRedstonePower(fromPos, directionToSource) > state.get(POWER)) {
+                    setNetworkPower(world, pos, world.getRedstonePower(fromPos, directionToSource));
+                } else {
+                    updateNetworkPower(world, pos);
+                }
+            } else {
+                spawnDrops(state, world, pos);
+                world.removeBlock(pos, false);
             }
+        }
+    }
 
-            world.notifyNeighborsOfStateChange(pos, this);
-            for(Direction direction : Direction.values()) {
-                BlockPos other = pos.offset(direction);
-                world.notifyNeighborsOfStateChange(other, this);
+
+    /** Since we have the same power on all connected RefinedRedstoneBlocks, we always update our power according to all connected
+     * Blocks, which we labeled as a "Network"
+     *
+     * 1 - First we basically set the power of the to 0 by setting {@link RefinedRedstoneBlock#canProvidePower} to false
+     * 2 - We then find the maximum power of all Blocks in the Network
+     * 3 - After that, set the power accordingly and turn {@link RefinedRedstoneBlock#canProvidePower} back on.
+     *
+     * @param world The world the Block is in
+     * @param pos The Position of the Block (Used as an origin for the network)
+     */
+    private void updateNetworkPower(World world, BlockPos pos) {
+        canProvidePower = false;
+
+        int highestPower = getAllBlocksInNetwork(world, pos).stream()
+                .map(blockPos -> getStrongestSignal(world, blockPos)).max(Integer::compareTo).orElse(0);
+
+        setNetworkPower(world, pos, highestPower);
+        canProvidePower = true;
+    }
+
+
+    /** Set the Power of every Block in the Network
+     * @param world The World the Block is in
+     * @param pos The Position of one of the Blocks
+     * @param power The Power to set those Blocks to
+     */
+    private void setNetworkPower(World world, BlockPos pos, int power) {
+        for (BlockPos position : getAllBlocksInNetwork(world, pos)) {
+            world.setBlockState(position, world.getBlockState(pos).with(POWER, power));
+        }
+    }
+
+
+    /** Return the Position of all Connected RefinedRedstoneBlocks
+     * @param world The World the Block is in
+     * @param pos The Position of one of the Blocks in the Network
+     * @return An ArrayList with all BlockPositions
+     */
+    private List<BlockPos> getAllBlocksInNetwork(World world, BlockPos pos) {
+        List<BlockPos> positions = new ArrayList<>();
+        Queue<BlockPos> positionsToVisit = new ArrayDeque<>();
+        positions.add(pos);
+        positionsToVisit.add(pos);
+
+        while (positionsToVisit.size() > 0) {
+            BlockPos current = positionsToVisit.remove();
+
+            // Loop over every neighbor and add them to both lists if they aren't/weren't already in there.
+            for (Direction direction : Direction.values()) {
+                BlockPos neighborPos = current.offset(direction);
+                if (world.getBlockState(neighborPos).isIn(BlockRegister.REFINED_REDSTONE.get()) && !positions.contains(neighborPos)){
+                    positionsToVisit.add(neighborPos);
+                    positions.add(neighborPos);
+                }
             }
         }
 
+        return positions;
     }
 
-    private int getPower(BlockState state) {
-        return state.isIn(this) ? state.get(POWER) : 0;
-    }
 
     private int getStrongestSignal(World world, BlockPos pos) {
-        this.canProvidePower = false;
-        int powerFromNeighbors = world.getRedstonePowerFromNeighbors(pos);
-        this.canProvidePower = true;
-
-        //if (powerFromNeighbors == 15) {
-        //    return powerFromNeighbors;
-        //}
-
-        int max = 0;
-        for(Direction direction : Direction.Plane.HORIZONTAL) {
-            BlockPos blockpos = pos.offset(direction);
-            BlockState blockstate = world.getBlockState(blockpos);
-            max = Math.max(max, this.getPower(blockstate));
-
-            BlockPos blockpos1 = pos.up();
-            if (blockstate.isNormalCube(world, blockpos) && !world.getBlockState(blockpos1).isNormalCube(world, blockpos1)) {
-                max = Math.max(max, this.getPower(world.getBlockState(blockpos.up())));
-            } else if (!blockstate.isNormalCube(world, blockpos)) {
-                max = Math.max(max, this.getPower(world.getBlockState(blockpos.down())));
-            }
-        }
-
-        return Math.max(powerFromNeighbors, max);
+         return Arrays.stream(Direction.values())
+                 .map(direction -> world.getRedstonePower(pos.offset(direction), direction.getOpposite()))
+                 .max(Integer::compareTo).orElse(0);
     }
+    
 
-    /**
-     * @deprecated call via {@link BlockState#getStrongPower(IBlockReader, BlockPos, Direction)} whenever possible.
-     * Implementing/overriding is fine.
-     */
+    /** Get the Strong Power of the Block */
     @SuppressWarnings("deprecation")
     @Override
     public int getStrongPower(@NotNull BlockState blockState, @NotNull IBlockReader blockAccess, @NotNull BlockPos pos, @NotNull Direction side) {
-        return this.canProvidePower ? blockState.getWeakPower(blockAccess, pos, side) : 0;
+        return canProvidePower ? blockState.get(POWER) : 0;
     }
 
-    /**
-     * @deprecated call via {@link BlockState#getWeakPower(IBlockReader, BlockPos, Direction)} whenever possible.
-     * Implementing/overriding is fine.
-     */
+
+    /** Get the Weak Power of the Block */
     @SuppressWarnings("deprecation")
     @Override
     public int getWeakPower(@NotNull BlockState blockState, @NotNull IBlockReader blockAccess, @NotNull BlockPos pos, @NotNull Direction side) {
-        if (this.canProvidePower && side != Direction.DOWN) {
-            int power = blockState.get(POWER);
-
-            if (power == 0) {
-                return 0;
-            } else {
-                return side != Direction.UP && !this.getUpdatedState(blockAccess, blockState, pos).get(CONNECTION_UP) ? 0 : power;
-            }
-        } else {
-            return 0;
+        if (canProvidePower && blockState.get(DIRECTION_TO_PROPERTY.get(side))) {
+            return blockState.get(POWER);
         }
+
+        return 0;
     }
 
-    /**
-     * Can this block provide power. Only wire currently seems to have this change based on its state.
-     * @deprecated call via {@link BlockState#canProvidePower()} whenever possible. Implementing/overriding is fine.
-     */
+
+    /** This Block can provide Power! */
     @SuppressWarnings("deprecation")
     @Override
     public boolean canProvidePower(@NotNull BlockState state) {
-        return this.canProvidePower;
+        return canProvidePower;
     }
 
-    @OnlyIn(Dist.CLIENT)
-    public static int getRGBByPower(int power) {
-        Vector3f vector3f = powerColors[power];
+
+
+    // ------------------------------
+    //           Visuals
+    // ------------------------------
+
+    /**
+     * Tint the Block according to the current Power
+     *    0 = Dark Red
+     *    15 = Bright Red
+     *
+     * @param state The BlockState of the Block
+     * @param blockDisplayReader The DisplayReader
+     * @param blockPos The Position of the Block
+     * @param tintIndex Each block can have multiple tintable Textures. In this case it should always be 0 as we only have 1 tintIndex
+     * @return An RGBA-Value converted to an Integer. Each 8-bits of the 32-bit Integer represents a color between 0-255.
+     */
+    @Override
+    public int getColor(BlockState state, @Nullable IBlockDisplayReader blockDisplayReader, @Nullable BlockPos blockPos, int tintIndex) {
+        Vector3f vector3f = powerColors[state.get(POWER)];
         return MathHelper.rgb(vector3f.getX(), vector3f.getY(), vector3f.getZ());
     }
+
 
     @OnlyIn(Dist.CLIENT)
     private void spawnPoweredParticle(World world, Random rand, BlockPos pos, Vector3f rgbVector, Direction directionFrom, Direction directionTo, float minChance, float maxChance) {
@@ -537,40 +393,18 @@ public class RefinedRedstoneBlock extends Block {
      * Called periodically clientside on blocks near the player to show effects (like furnace fire particles). Note that
      * this method  will always be called regardless of whether the block can receive random update ticks
      */
+
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void animateTick(BlockState stateIn, @NotNull World worldIn, @NotNull BlockPos pos, @NotNull Random rand) {
-        int i = stateIn.get(POWER);
+    public void animateTick(BlockState state, @NotNull World world, @NotNull BlockPos pos, @NotNull Random rand) {
+        int i = state.get(POWER);
         if (i != 0) {
-            for(Direction direction : Direction.Plane.HORIZONTAL) {
-
+            for(Direction direction : Direction.values()) {
+                if (state.get(DIRECTION_TO_PROPERTY.get(direction))) {
+                    spawnPoweredParticle(world, rand, pos, powerColors[i], direction, Direction.UP, 0.0f, 0.5f);
+                }
             }
 
         }
-    }
-
-    /**
-     * Returns the blockstate with the given rotation from the passed blockstate. If inapplicable, returns the passed
-     * blockstate.
-     * @deprecated call via {@link BlockState#rotate(Rotation)} whenever possible. Implementing/overriding is
-     * fine.
-     */
-    @SuppressWarnings("deprecation")
-    @NotNull
-    @Override
-    public BlockState rotate(@NotNull BlockState state, @NotNull Rotation rot) {
-        return state;
-    }
-
-    /**
-     * Returns the blockstate with the given mirror of the passed blockstate. If inapplicable, returns the passed
-     * blockstate.
-     * @deprecated call via {@link BlockState#mirror(Mirror)} whenever possible. Implementing/overriding is fine.
-     */
-    @SuppressWarnings("deprecation")
-    @NotNull
-    @Override
-    public BlockState mirror(@NotNull BlockState state, @NotNull Mirror mirrorIn) {
-        return state;
     }
 }

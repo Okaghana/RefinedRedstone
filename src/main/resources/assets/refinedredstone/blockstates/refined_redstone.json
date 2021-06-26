@@ -1,7 +1,27 @@
 {
-  "variants": {
-    "": {
-      "model": "refinedredstone:block/refined_redstone_model_core"
+  "multipart": [
+    {   "when": { "connected_up": true },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_core", "x":  180}
+    },
+
+    {   "when": { "connected_down": true },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_core"}
+    },
+
+    {   "when": { "connected_north": true },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_core", "x":  270}
+    },
+
+    {   "when": { "connected_east": true },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_core", "y":  270, "x": 90}
+    },
+
+    {   "when": { "connected_south": true },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_core", "x":  90}
+    },
+
+    {   "when": { "connected_west": true },
+      "apply": { "model": "refinedredstone:block/refined_redstone_model_core", "y":  90, "x": 90}
     }
-  }
+  ]
 }
